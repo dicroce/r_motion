@@ -33,4 +33,4 @@ target_link_libraries(
     ${CMAKE_DL_LIBS}
 )
 
-#add_subdirectory(ut)
+add_subdirectory(ut)
