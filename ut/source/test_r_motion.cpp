@@ -8,9 +8,7 @@
 #include "r_av/r_video_decoder.h"
 #include <deque>
 
-// Added to the global namespace by test_r_mux.cpp, so extern'd here:
-extern unsigned char bad_guy_mp4[];
-extern unsigned int bad_guy_mp4_len;
+#include "bad_guy.h"
 
 using namespace std;
 using namespace r_utils;
