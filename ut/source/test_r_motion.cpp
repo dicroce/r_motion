@@ -142,7 +142,7 @@ void test_r_motion::test_basic_utils()
         }
     }
 #endif
-#if 0
+#if 1
     r_demuxer demuxer("bad_guy.mp4", true);
     auto video_stream_index = demuxer.get_video_stream_index();
     auto vsi = demuxer.get_stream_info(video_stream_index);
@@ -200,6 +200,7 @@ void test_r_motion::test_basic_utils()
     auto sub_result = gray8_compute_motion(argb_to_gray8(first_img), argb_to_gray8(second_img));
 
     printf("motion: %lu\n", sub_result.first);
+    fflush(stdout);
 
 //    auto output = gray16_to_argb(argb_to_gray16(img));
 
