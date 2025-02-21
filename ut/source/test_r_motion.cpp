@@ -8,7 +8,7 @@
 #include "r_av/r_video_decoder.h"
 #include <deque>
 
-#include "bad_guy.h"
+#include "serv.h"
 
 using namespace std;
 using namespace r_utils;
@@ -40,170 +40,130 @@ std::string get_env(const string& name)
 
 void test_r_motion::setup()
 {
-    r_fs::write_file(bad_guy_mp4, bad_guy_mp4_len, "bad_guy.mp4");
+    r_fs::write_file(serv_mp4, serv_mp4_len, "serv.mp4");
 }
 
 void test_r_motion::teardown()
 {
-    r_fs::remove_file("bad_guy.mp4");
+    r_fs::remove_file("serv.mp4");
 }
 
-static shared_ptr<vector<uint8_t>> decode_h264_frame(AVCodecID codec_id, AVPixelFormat fmt, uint16_t w, uint16_t h, const uint8_t* data, size_t size)
+void _write_gray8(const r_image& img, const std::string& file_name)
 {
-    r_video_decoder decoder(codec_id);
-
-    decoder.attach_buffer(data, size);
-
-    shared_ptr<vector<uint8_t>> result;
-    r_codec_state decoder_state = R_CODEC_STATE_AGAIN;
-    while(decoder_state == R_CODEC_STATE_AGAIN)
-        decoder_state = decoder.decode();
-    decoder_state = decoder.flush();
-    if(decoder_state == R_CODEC_STATE_HAS_OUTPUT)
-        result = decoder.get(AV_PIX_FMT_ARGB,w,h);
-
-    return result;
+    auto argb = gray8_to_argb(img);
+    ppm_write_argb(file_name, argb);
 }
 
 void test_r_motion::test_basic_utils()
 {
-#if 0
-    auto fakey_root = get_env("FAKEY_ROOT");
-
-    if(!fakey_root.empty())
-    {
-        auto path = fakey_root + r_utils::PATH_SLASH + "conv.mp4";
-        r_demuxer demuxer(path, true);
-        auto video_stream_index = demuxer.get_video_stream_index();
-        auto vsi = demuxer.get_stream_info(video_stream_index);
-
-        r_video_decoder decoder(vsi.codec_id);
-        decoder.set_output_pixel_format(AV_PIX_FMT_ARGB);
-        decoder.set_output_width(640);
-        decoder.set_output_height(480);
-
-        deque<r_image> avg_set;
-        bool have_last = false;
-        r_image last;
-
-        r_exp_avg<uint64_t> avg(0, 1000);
-
-        while(demuxer.read_frame())
-        {
-            auto fi = demuxer.get_frame_info();
-
-            if(fi.index == video_stream_index)
-            {
-                if(fi.key)
-                {
-                    decoder.attach_buffer(fi.data, fi.size);
-
-                    r_video_decoder_state decoder_state = decoder.decode();
-
-                    if(decoder_state == R_VIDEO_DECODER_STATE_HAS_OUTPUT)
-                    {
-                        auto result = decoder.get();
-
-                        r_image img;
-                        img.type = R_MOTION_IMAGE_TYPE_ARGB;
-                        img.width = 640;
-                        img.height = 480;
-                        img.data = result;
-
-                        auto bw = argb_to_gray8(img);
-
-                        if(have_last)
-                        {
-                            auto motion = gray8_compute_motion(last, bw);
-
-                            auto val = avg.update(motion.first);
-
-                            printf("motion: %lu, stddev: %lu\n", val, avg.standard_deviation());
-
-//                            if(motion.first > 3200000000)
-//                            {
-//                                ppm_write_argb(r_string_utils::uint64_to_s(motion.first) + ".ppm", gray8_to_argb(motion.second));
-//                            }
-
-//                            printf("motion=%lu\n",motion.first);
-                        }
-
-                        if(!have_last)
-                        {
-                            last = bw;
-                            have_last = true;
-                        }
-
-                        if(avg_set.size() > 10)
-                            avg_set.pop_front();
-                    }
-                }
-            }
-        }
-    }
-#endif
-#if 1
-    r_demuxer demuxer("bad_guy.mp4", true);
+    r_demuxer demuxer("serv.mp4", true);
     auto video_stream_index = demuxer.get_video_stream_index();
     auto vsi = demuxer.get_stream_info(video_stream_index);
 
+    auto ed = demuxer.get_extradata(video_stream_index);
+
+    r_video_decoder decoder(vsi.codec_id);
+    if(!ed.empty())
+        decoder.set_extradata(ed);
+
+    std::shared_ptr<std::vector<uint8_t>> first_frame;
+    std::shared_ptr<std::vector<uint8_t>> second_frame;    
+    std::shared_ptr<std::vector<uint8_t>> third_frame;
+
     bool got_first_key_frame = false;
-    vector<uint8_t> first_key_frame;
 
-    bool got_second_key_frame = false;
-    vector<uint8_t> second_key_frame;
+    int skip = 80;
+    int frame_index = 0;
 
-    int nth_key_frame = 0;
-
-    while(!got_first_key_frame || !got_second_key_frame)
+    while(!first_frame || !second_frame || !third_frame)
     {
         demuxer.read_frame();
         auto fi = demuxer.get_frame_info();
 
+        frame_index++;
+
+        --skip;
+        if(skip > 0)
+            continue;
+
+AGAIN:
         if(fi.index == video_stream_index)
         {
-            if(fi.key)
-            {
-                ++nth_key_frame;
-                if(nth_key_frame < 6)
-                    continue;
+            r_codec_state cs = R_CODEC_STATE_INITIALIZED;
 
-                if(!got_first_key_frame)
+            if(!got_first_key_frame)
+            {
+                if(fi.key)
                 {
-                    first_key_frame = decode_h264_frame(vsi.codec_id, AV_PIX_FMT_ARGB, fi.data, fi.size);
                     got_first_key_frame = true;
+
+                    decoder.attach_buffer(fi.data, fi.size);
+                    cs = decoder.decode();
                 }
-                else if(!got_second_key_frame)
-                {
-                    second_key_frame = decode_h264_frame(vsi.codec_id, AV_PIX_FMT_ARGB, fi.data, fi.size);
-                    got_second_key_frame = true;
-                }
+            }
+            else
+            {
+                decoder.attach_buffer(fi.data, fi.size);
+                cs = decoder.decode();
+            }
+
+            if(cs == R_CODEC_STATE_AGAIN)
+                goto AGAIN;
+
+            if(cs == R_CODEC_STATE_HAS_OUTPUT || cs == R_CODEC_STATE_AGAIN_HAS_OUTPUT)
+            {
+                if(!first_frame)
+                    first_frame = decoder.get(AV_PIX_FMT_ARGB, vsi.resolution.first, vsi.resolution.second);
+                else if(!second_frame)
+                    second_frame = decoder.get(AV_PIX_FMT_ARGB, vsi.resolution.first, vsi.resolution.second);
+                else if(!third_frame)
+                    third_frame = decoder.get(AV_PIX_FMT_ARGB, vsi.resolution.first, vsi.resolution.second);
+                
+                if(cs == R_CODEC_STATE_AGAIN_HAS_OUTPUT)
+                    goto AGAIN;
             }
         }
     }
+
+    RTF_ASSERT(first_frame->empty() == false);
+    RTF_ASSERT(second_frame->empty() == false);
+    RTF_ASSERT(third_frame->empty() == false);
 
     r_image first_img;
     first_img.type = R_MOTION_IMAGE_TYPE_ARGB;
     first_img.width = vsi.resolution.first;
     first_img.height = vsi.resolution.second;
-    first_img.data = first_key_frame;
+    first_img.data = first_frame;
+
+    auto first_img_bw = argb_to_gray8(first_img);
 
     r_image second_img;
     second_img.type = R_MOTION_IMAGE_TYPE_ARGB;
     second_img.width = vsi.resolution.first;
     second_img.height = vsi.resolution.second;
-    second_img.data = second_key_frame;
+    second_img.data = second_frame;
 
-    ppm_write_argb("first.ppm", first_img);
-    ppm_write_argb("second.ppm", second_img);
+    auto second_img_bw = argb_to_gray8(second_img);
 
-    auto sub_result = gray8_compute_motion(argb_to_gray8(first_img), argb_to_gray8(second_img));
+    r_image third_img;
+    third_img.type = R_MOTION_IMAGE_TYPE_ARGB;
+    third_img.width = vsi.resolution.first;
+    third_img.height = vsi.resolution.second;
+    third_img.data = third_frame;
 
-    printf("motion: %lu\n", sub_result.first);
-    fflush(stdout);
+    auto third_img_bw = argb_to_gray8(third_img);
 
-//    auto output = gray16_to_argb(argb_to_gray16(img));
+    auto diff_img = gray8_subtract(second_img_bw, first_img_bw);
 
-    ppm_write_argb("motion.ppm", gray8_to_argb(sub_result.second));
-#endif
+    auto diff2_img = gray8_subtract(third_img_bw, second_img_bw);
+
+    auto motion_img = gray8_remove(diff2_img, diff_img);
+
+    auto filtered = gray8_median_filter(motion_img);
+    auto binary = gray8_binarize(filtered);
+    auto dilated = gray8_dilate(binary);
+    auto eroded = gray8_erode(dilated);
+    auto motion = gray8_compute_motion(eroded);
+
+    RTF_ASSERT(motion > 1000);
 }

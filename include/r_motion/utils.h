@@ -40,6 +40,11 @@ R_API uint64_t gray8_compute_motion(const r_image& a);
 
 R_API void ppm_write_argb(const std::string& filename, const r_image& image);
 
+R_API r_image gray8_median_filter(const r_image& input, int kernel_size = 3);
+R_API r_image gray8_binarize(const r_image& input);
+R_API r_image gray8_dilate(const r_image& input, int kernel_size = 3);
+R_API r_image gray8_erode(const r_image& input, int kernel_size = 3);
+
 }
 
 #endif

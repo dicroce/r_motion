@@ -1,6 +1,7 @@
 #include "r_motion/utils.h"
 #include "r_utils/r_file.h"
 #include <cmath>
+#include <algorithm>
 
 using namespace std;
 using namespace r_utils;
@@ -315,7 +316,7 @@ void r_motion::ppm_write_argb(const std::string& filename, const r_image& image)
 {
     auto outFile = r_file::open(filename, "w+b");
 
-    fprintf(outFile, "P6\n%d %d\n255\n", image.width, image.height);
+    fprintf(outFile, "P6 %d %d 255\n", image.width, image.height);
 
     const uint8_t* src = image.data->data();
 
@@ -335,4 +336,202 @@ void r_motion::ppm_write_argb(const std::string& filename, const r_image& image)
     }
 
     outFile.close();
+}
+
+r_image r_motion::gray8_median_filter(const r_image& input, int kernel_size)
+{
+    if (input.type != R_MOTION_IMAGE_TYPE_GRAY8)
+        R_THROW(("gray8_median_filter() supports only GRAY8 images"));
+
+    if (kernel_size < 1 || (kernel_size % 2) == 0)
+        R_THROW(("Kernel size must be positive and odd"));
+
+    int half = kernel_size / 2;
+    uint16_t width = input.width;
+    uint16_t height = input.height;
+    const uint8_t* src = input.data->data();
+
+    auto result = make_shared<vector<uint8_t>>(width * height);
+
+    // Temporary container to store neighborhood pixel values.
+    vector<uint8_t> neighborhood;
+    neighborhood.reserve(kernel_size * kernel_size);
+
+    for (uint16_t y = 0; y < height; ++y)
+    {
+        for (uint16_t x = 0; x < width; ++x)
+        {
+            // If we're too close to the border, copy the pixel as is.
+            if (x < half || y < half || x >= width - half || y >= height - half)
+            {
+                (*result)[y * width + x] = src[y * width + x];
+            }
+            else
+            {
+                neighborhood.clear();
+                // Collect pixels within the kernel window.
+                for (int dy = -half; dy <= half; ++dy)
+                {
+                    for (int dx = -half; dx <= half; ++dx)
+                    {
+                        uint8_t pixel = src[(y + dy) * width + (x + dx)];
+                        neighborhood.push_back(pixel);
+                    }
+                }
+                // Sort and pick the median value.
+                sort(neighborhood.begin(), neighborhood.end());
+                uint8_t median = neighborhood[neighborhood.size() / 2];
+                (*result)[y * width + x] = median;
+            }
+        }
+    }
+
+    r_image output;
+    output.type = R_MOTION_IMAGE_TYPE_GRAY8;
+    output.width = width;
+    output.height = height;
+    output.data = result;
+    return output;
+}
+
+r_image r_motion::gray8_binarize(const r_image& input)
+{
+    if(input.type != R_MOTION_IMAGE_TYPE_GRAY8)
+        R_THROW(("binarize() supports only GRAY8 images"));
+
+    auto result = make_shared<vector<uint8_t>>(input.width * input.height);
+    const uint8_t* src = input.data->data();
+
+    for (uint32_t i = 0; i < input.width * input.height; ++i)
+    {
+        // Set any non-zero pixel to 255, making it binary.
+        (*result)[i] = (src[i] > 0) ? 255 : 0;
+    }
+
+    r_image output;
+    output.type = R_MOTION_IMAGE_TYPE_GRAY8;
+    output.width = input.width;
+    output.height = input.height;
+    output.data = result;
+    return output;
+}
+
+// Dilation for a GRAY8 image using a square kernel of size kernel_size x kernel_size.
+// The kernel size must be odd. For each pixel (except near boundaries),
+// we set the output to 255 if any pixel in the neighborhood is 255.
+r_image r_motion::gray8_dilate(const r_image& input, int kernel_size)
+{
+    if(input.type != R_MOTION_IMAGE_TYPE_GRAY8)
+        R_THROW(("dilate() supports only GRAY8 images"));
+
+    if(kernel_size < 1 || (kernel_size % 2) == 0)
+        R_THROW(("Kernel size must be positive and odd"));
+
+    int half = kernel_size / 2;
+    uint16_t width = input.width;
+    uint16_t height = input.height;
+    const uint8_t* src = input.data->data();
+
+    auto result = make_shared<vector<uint8_t>>(width * height);
+
+    for (uint16_t y = 0; y < height; ++y)
+    {
+        for (uint16_t x = 0; x < width; ++x)
+        {
+            // If we're too close to the border, simply copy the pixel.
+            if (x < half || y < half || x >= width - half || y >= height - half)
+            {
+                (*result)[y * width + x] = src[y * width + x];
+            }
+            else
+            {
+                uint8_t max_val = 0;
+                // Iterate over the neighborhood
+                for (int dy = -half; dy <= half; ++dy)
+                {
+                    for (int dx = -half; dx <= half; ++dx)
+                    {
+                        uint8_t pixel = src[(y + dy) * width + (x + dx)];
+                        if (pixel > max_val)
+                        {
+                            max_val = pixel;
+                            // Early exit if we find an "on" pixel.
+                            if(max_val == 255)
+                                break;
+                        }
+                    }
+                    if(max_val == 255)
+                        break;
+                }
+                (*result)[y * width + x] = max_val;
+            }
+        }
+    }
+
+    r_image output;
+    output.type = R_MOTION_IMAGE_TYPE_GRAY8;
+    output.width = width;
+    output.height = height;
+    output.data = result;
+    return output;
+}
+
+// Erosion for a GRAY8 image using a square kernel of size kernel_size x kernel_size.
+// The kernel size must be odd. For each pixel (except near boundaries),
+// we set the output to 255 only if every pixel in the neighborhood is 255; otherwise 0.
+r_image r_motion::gray8_erode(const r_image& input, int kernel_size)
+{
+    if(input.type != R_MOTION_IMAGE_TYPE_GRAY8)
+        R_THROW(("erode() supports only GRAY8 images"));
+
+    if(kernel_size < 1 || (kernel_size % 2) == 0)
+        R_THROW(("Kernel size must be positive and odd"));
+
+    int half = kernel_size / 2;
+    uint16_t width = input.width;
+    uint16_t height = input.height;
+    const uint8_t* src = input.data->data();
+
+    auto result = make_shared<vector<uint8_t>>(width * height);
+
+    for (uint16_t y = 0; y < height; ++y)
+    {
+        for (uint16_t x = 0; x < width; ++x)
+        {
+            // If we're too close to the border, simply copy the pixel.
+            if (x < half || y < half || x >= width - half || y >= height - half)
+            {
+                (*result)[y * width + x] = src[y * width + x];
+            }
+            else
+            {
+                uint8_t min_val = 255;
+                // Iterate over the neighborhood
+                for (int dy = -half; dy <= half; ++dy)
+                {
+                    for (int dx = -half; dx <= half; ++dx)
+                    {
+                        uint8_t pixel = src[(y + dy) * width + (x + dx)];
+                        if (pixel < min_val)
+                        {
+                            min_val = pixel;
+                            // Early exit if we find an "off" pixel.
+                            if(min_val == 0)
+                                break;
+                        }
+                    }
+                    if(min_val == 0)
+                        break;
+                }
+                (*result)[y * width + x] = min_val;
+            }
+        }
+    }
+
+    r_image output;
+    output.type = R_MOTION_IMAGE_TYPE_GRAY8;
+    output.width = width;
+    output.height = height;
+    output.data = result;
+    return output;
 }

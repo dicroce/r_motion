@@ -24,7 +24,8 @@ target_include_directories(
     ../include
 )
 target_link_libraries(
-    r_motion_ut LINK_PUBLIC 
-    r_utils
+    r_motion_ut LINK_PUBLIC
+    r_motion
     r_av
+    r_utils
 )
