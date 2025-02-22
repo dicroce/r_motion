@@ -1,12 +1,14 @@
 
 #include "test_r_motion.h"
 #include "r_motion/utils.h"
+#include "r_motion/r_motion_state.h"
 #include "r_utils/r_file.h"
 #include "r_utils/r_string_utils.h"
 #include "r_utils/r_avg.h"
 #include "r_av/r_demuxer.h"
 #include "r_av/r_video_decoder.h"
 #include <deque>
+#include <numeric>
 
 #include "serv.h"
 
@@ -72,7 +74,7 @@ void test_r_motion::test_basic_utils()
 
     bool got_first_key_frame = false;
 
-    int skip = 80;
+    int skip = 250;
     int frame_index = 0;
 
     while(!first_frame || !second_frame || !third_frame)
@@ -170,4 +172,66 @@ AGAIN:
     auto motion = gray8_compute_motion(eroded);
 
     RTF_ASSERT(motion > 1000);
+}
+
+void test_r_motion::test_motion_state()
+{
+    r_demuxer demuxer("serv.mp4", true);
+    auto video_stream_index = demuxer.get_video_stream_index();
+    auto vsi = demuxer.get_stream_info(video_stream_index);
+
+    auto ed = demuxer.get_extradata(video_stream_index);
+
+    r_video_decoder decoder(vsi.codec_id);
+    if(!ed.empty())
+        decoder.set_extradata(ed);
+
+    r_motion_state ms;
+
+    bool done_demuxing = false;
+
+    int idx = 0;
+
+    while(!done_demuxing)
+    {
+        ++idx;
+
+        done_demuxing = !demuxer.read_frame();
+        auto fi = demuxer.get_frame_info();
+
+AGAIN:
+        if(fi.index == video_stream_index && fi.key)
+        {
+            r_codec_state cs = R_CODEC_STATE_INITIALIZED;
+
+            decoder.attach_buffer(fi.data, fi.size);
+            cs = decoder.decode();
+
+            if(cs == R_CODEC_STATE_AGAIN || cs == R_CODEC_STATE_HUNGRY)
+                goto AGAIN;
+
+            if(cs == R_CODEC_STATE_HAS_OUTPUT || cs == R_CODEC_STATE_AGAIN_HAS_OUTPUT)
+            {
+                auto frame = decoder.get(AV_PIX_FMT_ARGB, vsi.resolution.first, vsi.resolution.second);
+
+                r_image img;
+                img.type = R_MOTION_IMAGE_TYPE_ARGB;
+                img.width = vsi.resolution.first;
+                img.height = vsi.resolution.second;
+                img.data = frame;
+
+                auto maybe_mi = ms.process(img);
+
+                if(!maybe_mi.is_null())
+                {
+                    auto mi = maybe_mi.value();
+                    printf("motion=%9lu, avg_motion=%9lu, stddev=%9lu\n", mi.motion, mi.avg_motion, mi.stddev);
+                    fflush(stdout);
+                }
+                
+                if(cs == R_CODEC_STATE_AGAIN_HAS_OUTPUT)
+                    goto AGAIN;
+            }
+        }
+    }
 }

@@ -191,58 +191,6 @@ r_image r_motion::gray8_remove(const r_image& a, const r_image& b)
     return output;
 }
 
-r_image r_motion::average_images(const std::deque<r_image>& images)
-{
-    // Optimization Ideas:
-    // - Implement r_image.type specific versions of this function
-    //    - no innermost loop required
-    //    - for ARGB, no reason to average the alpha channel, just skip it
-
-    if(images.empty())
-        R_THROW(("No images to average"));
-
-    uint8_t src_pixel_size = 0;
-    if(images.front().type == R_MOTION_IMAGE_TYPE_ARGB)
-        src_pixel_size = 4;
-    else if(images.front().type == R_MOTION_IMAGE_TYPE_GRAY8)
-        src_pixel_size = 1;
-    else if(images.front().type == R_MOTION_IMAGE_TYPE_GRAY16)
-        src_pixel_size = 2;
-    else R_THROW(("Unsupported image type"));
-
-    uint16_t width = images.front().width;
-    uint16_t height = images.front().height;
-
-    auto result = make_shared<vector<uint8_t>>((width*src_pixel_size) * height);
-    uint8_t* dst = result->data();
-
-    for(uint16_t h = 0; h < height; ++h)
-    {
-        for(uint16_t w = 0; w < width; ++w)
-        {
-            for(int i = 0; i < src_pixel_size; ++i)
-            {
-                uint8_t sum = 0;
-                for(const auto& image : images)
-                {
-                    sum += image.data->data()[(h*width*src_pixel_size) + (w*src_pixel_size) + i];
-                }
-                sum /= (uint8_t)images.size();
-
-                *dst = sum;
-                ++dst;
-            }
-        }
-    }
-
-    r_image output;
-    output.type = images.front().type;
-    output.width = width;
-    output.height = height;
-    output.data = result;
-    return output;
-}
-
 uint64_t r_motion::gray8_compute_motion(const r_image& a)
 {
     auto a_p = a.data->data();
@@ -484,7 +432,6 @@ r_image r_motion::gray8_erode(const r_image& input, int kernel_size)
     return output;
 }
 
-
 // Euclidean distance between two points
 static double _distance(const r_point &a, const r_point &b) {
     int dx = a.x - b.x;
@@ -578,10 +525,6 @@ std::vector<std::vector<r_point>> r_motion::gray8_dbscan(const r_image &image, d
     return clusters;
 }
 
-
-
-
-
 // Compute core distance for each point using the minPts-th nearest neighbor.
 // The core distance for a point is the distance to its minPts-th closest neighbor.
 void _computeCoreDistances(std::vector<r_point> &points, int minPts) {
@@ -600,8 +543,6 @@ void _computeCoreDistances(std::vector<r_point> &points, int minPts) {
             points[i].coreDistance = std::numeric_limits<double>::infinity();
     }
 }
-
-
 
 // Mutual reachability distance between two points
 static double _mutualReachabilityDistance(const r_point &a, const r_point &b) {
