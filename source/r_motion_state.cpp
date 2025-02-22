@@ -54,9 +54,14 @@ r_nullable<r_motion_info> r_motion_state::process(const r_image& argb_input)
         {
             diff = gray8_remove(diff, _last_motion);
 
+            auto filtered = gray8_median_filter(diff);
+            auto binary = gray8_binarize(filtered);
+            auto dilated = gray8_dilate(binary);
+            auto eroded = gray8_erode(dilated);
+
             r_motion_info mi;
-            mi.motion_pixels = diff;
-            mi.motion = gray8_compute_motion(diff);
+            mi.motion_pixels = eroded;
+            mi.motion = gray8_compute_motion(eroded);
             mi.avg_motion = _avg_motion.update(mi.motion);
             mi.stddev = _avg_motion.standard_deviation();
 

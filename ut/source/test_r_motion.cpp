@@ -153,6 +153,10 @@ AGAIN:
 
     auto third_img_bw = argb_to_gray8(third_img);
 
+    // You need two frames to make a motion
+    // And you need a previous motion to subtract it from the current motion... HENCE
+    // you need three frames before you can start emitting motion values.
+
     auto diff_img = gray8_subtract(second_img_bw, first_img_bw);
 
     auto diff2_img = gray8_subtract(third_img_bw, second_img_bw);
