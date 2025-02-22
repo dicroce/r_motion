@@ -2,6 +2,7 @@
 #include "r_utils/r_file.h"
 #include <cmath>
 #include <algorithm>
+#include <unordered_map>
 
 using namespace std;
 using namespace r_utils;
