@@ -40,38 +40,6 @@ r_image r_motion::argb_to_gray8(const r_image& argb)
     return output;
 }
 
-r_image r_motion::argb_to_gray16(const r_image& argb)
-{
-    const uint8_t* src = argb.data->data();
-    auto result = make_shared<vector<uint8_t>>((argb.width*2) * argb.height);
-    uint8_t* dst = result->data();
-
-    for(uint16_t y = 0; y < argb.height; ++y)
-    {
-        for(uint16_t x = 0; x < argb.width; ++x)
-        {
-            ++src;
-            uint32_t sum = (uint16_t)((((double)(*src)) / 255.0) * 65535.0);
-            ++src;
-            sum += (uint16_t)((((double)(*src)) / 255.0) * 65535.0);
-            ++src;
-            sum += (uint16_t)((((double)(*src)) / 255.0) * 65535.0);
-            ++src;
-
-            *(uint16_t*)dst = sum / 3;
-
-            dst+=2;
-        }
-    }
-
-    r_image output;
-    output.type = R_MOTION_IMAGE_TYPE_GRAY16;
-    output.width = argb.width;
-    output.height = argb.height;
-    output.data = result;
-    return output;
-}
-
 r_image r_motion::gray8_to_argb(const r_image& gray)
 {
     const uint8_t* src = gray.data->data();
@@ -92,41 +60,6 @@ r_image r_motion::gray8_to_argb(const r_image& gray)
             ++dst;
 
             ++src;
-        }
-    }
-
-    r_image output;
-    output.type = R_MOTION_IMAGE_TYPE_ARGB;
-    output.width = gray.width;
-    output.height = gray.height;
-    output.data = result;
-    return output;
-}
-
-r_image r_motion::gray16_to_argb(const r_image& gray)
-{
-    const uint8_t* src = gray.data->data();
-    auto result = make_shared<vector<uint8_t>>((gray.width*4) * gray.height);
-    uint8_t* dst = result->data();
-
-    for(uint16_t y = 0; y < gray.height; ++y)
-    {
-        for(uint16_t x = 0; x < gray.width; ++x)
-        {
-            uint16_t src_value = *(uint16_t*)src;
-
-            uint8_t mv = (uint8_t)((((double)src_value) / 65535.0) * 255.0);
-
-            *dst = 255;
-            ++dst;
-            *dst = mv;
-            ++dst;
-            *dst = mv;
-            ++dst;
-            *dst = mv;
-            ++dst;
-
-            src+=2;
         }
     }
 
@@ -190,49 +123,6 @@ r_image r_motion::gray8_remove(const r_image& a, const r_image& b)
     output.data = output_buffer;
 
     return output;
-}
-
-uint64_t r_motion::gray8_compute_motion(const r_image& a)
-{
-    auto a_p = a.data->data();
-    uint64_t sum = 0;
-
-    for(uint16_t h = 0; h < a.height; ++h)
-    {
-        for(uint16_t w = 0; w < a.width; ++w)
-        {
-            sum += *a_p;
-            ++a_p;
-        }
-    }
-
-    return sum;
-}
-
-void r_motion::ppm_write_argb(const std::string& filename, const r_image& image)
-{
-    auto outFile = r_file::open(filename, "w+b");
-
-    fprintf(outFile, "P6 %d %d 255\n", image.width, image.height);
-
-    const uint8_t* src = image.data->data();
-
-    for(uint16_t y = 0; y < image.height; ++y)
-    {
-        for(uint16_t x = 0; x < image.width; ++x)
-        {
-            ++src;
-
-            fwrite(src, 1, 1, outFile);
-            ++src;
-            fwrite(src, 1, 1, outFile);
-            ++src;
-            fwrite(src, 1, 1, outFile);
-            ++src;
-        }
-    }
-
-    outFile.close();
 }
 
 r_image r_motion::gray8_median_filter(const r_image& input, int kernel_size)
@@ -433,21 +323,66 @@ r_image r_motion::gray8_erode(const r_image& input, int kernel_size)
     return output;
 }
 
+uint64_t r_motion::gray8_compute_motion(const r_image& a)
+{
+    auto a_p = a.data->data();
+    uint64_t sum = 0;
+
+    for(uint16_t h = 0; h < a.height; ++h)
+    {
+        for(uint16_t w = 0; w < a.width; ++w)
+        {
+            sum += *a_p;
+            ++a_p;
+        }
+    }
+
+    return sum;
+}
+
+void r_motion::write_argb_to_ppm(const std::string& filename, const r_image& image)
+{
+    auto outFile = r_file::open(filename, "w+b");
+
+    fprintf(outFile, "P6 %d %d 255\n", image.width, image.height);
+
+    const uint8_t* src = image.data->data();
+
+    for(uint16_t y = 0; y < image.height; ++y)
+    {
+        for(uint16_t x = 0; x < image.width; ++x)
+        {
+            ++src;
+
+            fwrite(src, 1, 1, outFile);
+            ++src;
+            fwrite(src, 1, 1, outFile);
+            ++src;
+            fwrite(src, 1, 1, outFile);
+            ++src;
+        }
+    }
+
+    outFile.close();
+}
+
 // Euclidean distance between two points
-static double _distance(const r_point &a, const r_point &b) {
+static double _distance(const r_point &a, const r_point &b)
+{
     int dx = a.x - b.x;
     int dy = a.y - b.y;
     return std::sqrt(dx * dx + dy * dy);
 }
 
 // Returns indices of points within eps of point at index 'idx'
-static std::vector<int> _regionQuery(const std::vector<r_point> &points, int idx, double eps) {
+static std::vector<int> _regionQuery(const std::vector<r_point> &points, int idx, double eps)
+{
     std::vector<int> neighbors;
     const r_point &p = points[idx];
-    for (int i = 0; i < points.size(); ++i) {
-        if (_distance(p, points[i]) <= eps) {
+    for (int i = 0; i < points.size(); ++i)
+    {
+        if (_distance(p, points[i]) <= eps)
             neighbors.push_back(i);
-        }
     }
     return neighbors;
 }
@@ -463,46 +398,47 @@ std::vector<std::vector<r_point>> r_motion::gray8_dbscan(const r_image &image, d
     std::vector<r_point> points;
     // Reserve an estimated size (optional optimization)
     points.reserve(image.width * image.height / 4);
-    for (int y = 0; y < image.height; ++y) {
-        for (int x = 0; x < image.width; ++x) {
+    for (int y = 0; y < image.height; ++y)
+    {
+        for (int x = 0; x < image.width; ++x)
+        {
             // Calculate the index in the 1D data buffer
             uint8_t value = (*image.data)[y * image.width + x];
-            if (value > 0) {
+            if (value > 0)
                 points.push_back({x, y, 0, false});
-            }
         }
     }
 
     int clusterId = 1;
     // Process each point
-    for (int i = 0; i < points.size(); ++i) {
+    for (int i = 0; i < points.size(); ++i)
+    {
         if (points[i].visited)
             continue;
         points[i].visited = true;
         std::vector<int> neighborIndices = _regionQuery(points, i, eps);
-        if (neighborIndices.size() < minPts) {
-            // Mark as noise
-            points[i].clusterId = -1;
-        } else {
+        if (neighborIndices.size() < minPts)
+            points[i].clusterId = -1; // Mark as noise
+        else
+        {
             // Start a new cluster
             points[i].clusterId = clusterId;
             // Seeds list to expand the cluster
             std::vector<int> seeds = neighborIndices;
             // Expand the cluster
-            for (int j = 0; j < seeds.size(); ++j) {
+            for (int j = 0; j < seeds.size(); ++j)
+            {
                 int currIdx = seeds[j];
-                if (!points[currIdx].visited) {
+                if (!points[currIdx].visited)
+                {
                     points[currIdx].visited = true;
                     std::vector<int> result = _regionQuery(points, currIdx, eps);
-                    if (result.size() >= minPts) {
-                        // Append new neighbors to the seeds list
-                        seeds.insert(seeds.end(), result.begin(), result.end());
-                    }
+                    if (result.size() >= minPts)
+                        seeds.insert(seeds.end(), result.begin(), result.end()); // Append new neighbors to the seeds list
                 }
                 // If not yet assigned to a cluster, add it to the current cluster
-                if (points[currIdx].clusterId == 0) {
+                if (points[currIdx].clusterId == 0)
                     points[currIdx].clusterId = clusterId;
-                }
             }
             // Move on to next cluster id for subsequent clusters
             clusterId++;
@@ -511,16 +447,15 @@ std::vector<std::vector<r_point>> r_motion::gray8_dbscan(const r_image &image, d
 
     // Organize points into clusters (ignoring noise if desired)
     std::unordered_map<int, std::vector<r_point>> clusterMap;
-    for (const auto &p : points) {
+    for (const auto &p : points)
         clusterMap[p.clusterId].push_back(p);
-    }
 
     std::vector<std::vector<r_point>> clusters;
     // Transfer clusters to the output vector (skipping noise, clusterId -1)
-    for (auto &entry : clusterMap) {
-        if (entry.first != -1) {
+    for (auto &entry : clusterMap)
+    {
+        if (entry.first != -1)
             clusters.push_back(entry.second);
-        }
     }
 
     return clusters;
@@ -528,13 +463,17 @@ std::vector<std::vector<r_point>> r_motion::gray8_dbscan(const r_image &image, d
 
 // Compute core distance for each point using the minPts-th nearest neighbor.
 // The core distance for a point is the distance to its minPts-th closest neighbor.
-void _computeCoreDistances(std::vector<r_point> &points, int minPts) {
+void _computeCoreDistances(std::vector<r_point> &points, int minPts)
+{
     int n = points.size();
-    for (int i = 0; i < n; ++i) {
+    for (int i = 0; i < n; ++i)
+    {
         std::vector<double> distances;
         distances.reserve(n - 1);
-        for (int j = 0; j < n; ++j) {
-            if (i == j) continue;
+        for (int j = 0; j < n; ++j)
+        {
+            if (i == j)
+                continue;
             distances.push_back(_distance(points[i], points[j]));
         }
         std::sort(distances.begin(), distances.end());
@@ -546,24 +485,29 @@ void _computeCoreDistances(std::vector<r_point> &points, int minPts) {
 }
 
 // Mutual reachability distance between two points
-static double _mutualReachabilityDistance(const r_point &a, const r_point &b) {
+static double _mutualReachabilityDistance(const r_point &a, const r_point &b)
+{
     double d = _distance(a, b);
     return std::max({a.coreDistance, b.coreDistance, d});
 }
 
 // Union-find data structure for Kruskal's algorithm.
-struct union_find {
+struct union_find
+{
     std::vector<int> parent;
-    union_find(int n) : parent(n) {
+    union_find(int n) : parent(n)
+    {
         for (int i = 0; i < n; ++i)
             parent[i] = i;
     }
-    int find(int i) {
+    int find(int i)
+    {
         if (parent[i] != i)
             parent[i] = find(parent[i]);
         return parent[i];
     }
-    void unite(int i, int j) {
+    void unite(int i, int j)
+    {
         int ri = find(i);
         int rj = find(j);
         if (ri != rj)
@@ -572,12 +516,15 @@ struct union_find {
 };
 
 // Build the Minimum Spanning Tree (MST) over the mutual reachability graph using Kruskal's algorithm.
-static std::vector<r_edge> _buildMST(const std::vector<r_point> &points) {
+static std::vector<r_edge> _buildMST(const std::vector<r_point> &points)
+{
     int n = points.size();
     std::vector<r_edge> edges;
     // Construct all possible edges (O(n^2)); for large datasets a spatial index is advised.
-    for (int i = 0; i < n; ++i) {
-        for (int j = i + 1; j < n; ++j) {
+    for (int i = 0; i < n; ++i)
+    {
+        for (int j = i + 1; j < n; ++j)
+        {
             double w = _mutualReachabilityDistance(points[i], points[j]);
             edges.push_back({i, j, w});
         }
@@ -589,8 +536,10 @@ static std::vector<r_edge> _buildMST(const std::vector<r_point> &points) {
     // Kruskal's algorithm to select edges for the MST.
     union_find uf(n);
     std::vector<r_edge> mst;
-    for (const auto &edge : edges) {
-        if (uf.find(edge.a) != uf.find(edge.b)) {
+    for (const auto &edge : edges)
+    {
+        if (uf.find(edge.a) != uf.find(edge.b))
+        {
             uf.unite(edge.a, edge.b);
             mst.push_back(edge);
         }
@@ -602,9 +551,11 @@ static std::vector<r_edge> _buildMST(const std::vector<r_point> &points) {
 
 // Extract clusters from the MST by removing edges with weight above a given threshold.
 // This is a simplified extraction compared to the full HDBSCAN hierarchy condensation.
-static void _extraceClusters(const std::vector<r_edge> &mst, int nPoints, double threshold, std::vector<int> &labels) {
+static void _extraceClusters(const std::vector<r_edge> &mst, int nPoints, double threshold, std::vector<int> &labels)
+{
     union_find uf(nPoints);
-    for (const auto &edge : mst) {
+    for (const auto &edge : mst)
+    {
         if (edge.weight <= threshold)
             uf.unite(edge.a, edge.b);
     }
@@ -616,21 +567,22 @@ static void _extraceClusters(const std::vector<r_edge> &mst, int nPoints, double
 // Simplified HDBSCAN implementation for an r_image (assumed to be GRAY8).
 // minPts: minimum number of points to consider for core distance.
 // clusterSelectionThreshold: threshold on the mutual reachability distance to decide cluster connectivity.
-std::vector<std::vector<r_point>> r_motion::gray8_hdbscan(const r_image &image, int minPts, double clusterSelectionThreshold) {
+std::vector<std::vector<r_point>> r_motion::gray8_hdbscan(const r_image &image, int minPts, double clusterSelectionThreshold)
+{
     std::vector<std::vector<r_point>> clusters;
     // Collect nonzero pixels from the image.
     std::vector<r_point> points;
-    for (int y = 0; y < image.height; ++y) {
-        for (int x = 0; x < image.width; ++x) {
+    for (int y = 0; y < image.height; ++y)
+    {
+        for (int x = 0; x < image.width; ++x)
+        {
             uint8_t value = (*image.data)[y * image.width + x];
-            if (value > 0) {
+            if (value > 0)
                 points.push_back({x, y, 0, false, 0.0});
-            }
         }
     }
-    if (points.empty()) {
+    if (points.empty())
         return clusters;
-    }
 
     // Step 1: Compute core distances for all points.
     _computeCoreDistances(points, minPts);
@@ -644,13 +596,11 @@ std::vector<std::vector<r_point>> r_motion::gray8_hdbscan(const r_image &image, 
 
     // Group points into clusters.
     std::unordered_map<int, std::vector<r_point>> clusterMap;
-    for (size_t i = 0; i < points.size(); ++i) {
+    for (size_t i = 0; i < points.size(); ++i)
         clusterMap[labels[i]].push_back(points[i]);
-    }
     
-    for (auto &entry : clusterMap) {
+    for (auto &entry : clusterMap)
         clusters.push_back(entry.second);
-    }
 
     return clusters;
 }

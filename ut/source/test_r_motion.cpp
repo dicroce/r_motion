@@ -53,7 +53,7 @@ void test_r_motion::teardown()
 void _write_gray8(const r_image& img, const std::string& file_name)
 {
     auto argb = gray8_to_argb(img);
-    ppm_write_argb(file_name, argb);
+    write_argb_to_ppm(file_name, argb);
 }
 
 void test_r_motion::test_basic_utils()
@@ -190,12 +190,10 @@ void test_r_motion::test_motion_state()
 
     bool done_demuxing = false;
 
-    int idx = 0;
+    bool nonZeroMotion = false;
 
     while(!done_demuxing)
     {
-        ++idx;
-
         done_demuxing = !demuxer.read_frame();
         auto fi = demuxer.get_frame_info();
 
@@ -225,8 +223,8 @@ AGAIN:
                 if(!maybe_mi.is_null())
                 {
                     auto mi = maybe_mi.value();
-                    printf("motion=%9lu, avg_motion=%9lu, stddev=%9lu\n", mi.motion, mi.avg_motion, mi.stddev);
-                    fflush(stdout);
+                    if(mi.motion > 0)
+                        nonZeroMotion = true;
                 }
                 
                 if(cs == R_CODEC_STATE_AGAIN_HAS_OUTPUT)
@@ -234,4 +232,6 @@ AGAIN:
             }
         }
     }
+
+    RTF_ASSERT(nonZeroMotion);
 }
