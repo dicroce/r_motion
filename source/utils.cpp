@@ -8,11 +8,39 @@ using namespace std;
 using namespace r_utils;
 using namespace r_motion;
 
-r_image r_motion::argb_to_gray8(const r_image& argb)
+uint16_t r_motion::bytes_per_pixel(r_motion_image_type type)
+{
+    if(type == R_MOTION_IMAGE_TYPE_ARGB)
+        return 4;
+    else if(type == R_MOTION_IMAGE_TYPE_GRAY8)
+        return 1;
+    
+    R_THROW(("Unsupport image type."));
+}
+
+uint32_t r_motion::image_size(r_motion_image_type type, uint16_t w, uint16_t h)
+{
+    return (w*bytes_per_pixel(type)) * h;
+}
+
+r_image r_motion::create_image(r_motion_image_type type, uint16_t w, uint16_t h)
+{
+    r_image img;
+    img.type = type;
+    img.width = w;
+    img.height = h;
+    img.data = make_shared<std::vector<uint8_t>>(image_size(type, w, h));
+
+    return img;
+}
+
+void r_motion::argb_to_gray8(const r_image& argb, r_image& output)
 {
     const uint8_t* src = argb.data->data();
-    auto result = make_shared<vector<uint8_t>>(argb.width * argb.height);
-    uint8_t* dst = result->data();
+
+    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, argb.width, argb.height));
+
+    uint8_t* dst = output.data->data();
 
     for(uint16_t y = 0; y < argb.height; ++y)
     {
@@ -32,19 +60,18 @@ r_image r_motion::argb_to_gray8(const r_image& argb)
         }
     }
 
-    r_image output;
     output.type = R_MOTION_IMAGE_TYPE_GRAY8;
     output.width = argb.width;
     output.height = argb.height;
-    output.data = result;
-    return output;
 }
 
-r_image r_motion::gray8_to_argb(const r_image& gray)
+void r_motion::gray8_to_argb(const r_image& gray, r_image& output)
 {
     const uint8_t* src = gray.data->data();
-    auto result = make_shared<vector<uint8_t>>((gray.width*4) * gray.height);
-    uint8_t* dst = result->data();
+
+    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_ARGB, gray.width, gray.height));
+
+    uint8_t* dst = output.data->data();
 
     for(uint16_t y = 0; y < gray.height; ++y)
     {
@@ -63,21 +90,18 @@ r_image r_motion::gray8_to_argb(const r_image& gray)
         }
     }
 
-    r_image output;
     output.type = R_MOTION_IMAGE_TYPE_ARGB;
     output.width = gray.width;
     output.height = gray.height;
-    output.data = result;
-    return output;
 }
 
-r_image r_motion::gray8_subtract(const r_image& a, const r_image& b)
-{ 
+void r_motion::gray8_subtract(const r_image& a, const r_image& b, r_image& output)
+{
     const uint8_t* src_a = a.data->data();
     const uint8_t* src_b = b.data->data();
 
-    auto result = make_shared<vector<uint8_t>>(a.width * a.height);
-    uint8_t* dst = result->data();
+    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, a.width, a.height));
+    uint8_t* dst = output.data->data();
 
     for(uint16_t h = 0; h < a.height; ++h)
     {
@@ -91,13 +115,9 @@ r_image r_motion::gray8_subtract(const r_image& a, const r_image& b)
         }
     }
 
-    r_image output;
     output.type = R_MOTION_IMAGE_TYPE_GRAY8;
     output.width = a.width;
     output.height = a.height;
-    output.data = result;
-
-    return output;
 }
 
 r_image r_motion::gray8_remove(const r_image& a, const r_image& b)

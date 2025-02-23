@@ -14,8 +14,7 @@ namespace r_motion
 enum r_motion_image_type
 {
     R_MOTION_IMAGE_TYPE_ARGB,
-    R_MOTION_IMAGE_TYPE_GRAY8,
-    R_MOTION_IMAGE_TYPE_GRAY16
+    R_MOTION_IMAGE_TYPE_GRAY8
 };
 
 struct r_image
@@ -46,10 +45,15 @@ struct r_edge
     double weight;
 };
 
-R_API r_image argb_to_gray8(const r_image& argb);
-R_API r_image gray8_to_argb(const r_image& gray);
+R_API uint16_t bytes_per_pixel(r_motion_image_type type);
+R_API uint32_t image_size(r_motion_image_type type, uint16_t w, uint16_t h);
 
-R_API r_image gray8_subtract(const r_image& a, const r_image& b);
+R_API r_image create_image(r_motion_image_type type, uint16_t w, uint16_t h);
+
+R_API void argb_to_gray8(const r_image& argb, r_image& output);
+R_API void gray8_to_argb(const r_image& gray, r_image& output);
+
+R_API void gray8_subtract(const r_image& a, const r_image& b, r_image& output);
 R_API r_image gray8_remove(const r_image& a, const r_image& b);
 
 R_API r_image gray8_median_filter(const r_image& input, int kernel_size = 3);

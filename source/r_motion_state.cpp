@@ -44,11 +44,15 @@ r_nullable<r_motion_info> r_motion_state::process(const r_image& argb_input)
 {
     r_nullable<r_motion_info> result;
 
-    auto bw = argb_to_gray8(argb_input);
+    auto bw = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
+
+    argb_to_gray8(argb_input, bw);
 
     if(_has_last)
     {
-        auto diff = gray8_subtract(bw, _last);
+        auto diff = create_image(R_MOTION_IMAGE_TYPE_GRAY8, bw.width, bw.height);
+
+        gray8_subtract(bw, _last, diff);
 
         if(_has_last_motion)
         {

@@ -52,7 +52,8 @@ void test_r_motion::teardown()
 
 void _write_gray8(const r_image& img, const std::string& file_name)
 {
-    auto argb = gray8_to_argb(img);
+    auto argb = create_image(R_MOTION_IMAGE_TYPE_ARGB, img.width, img.height);
+    gray8_to_argb(img, argb);
     write_argb_to_ppm(file_name, argb);
 }
 
@@ -137,7 +138,8 @@ AGAIN:
     first_img.height = vsi.resolution.second;
     first_img.data = first_frame;
 
-    auto first_img_bw = argb_to_gray8(first_img);
+    auto first_img_bw = create_image(R_MOTION_IMAGE_TYPE_GRAY8, first_img.width, first_img.height);
+    argb_to_gray8(first_img, first_img_bw);
 
     r_image second_img;
     second_img.type = R_MOTION_IMAGE_TYPE_ARGB;
@@ -145,7 +147,8 @@ AGAIN:
     second_img.height = vsi.resolution.second;
     second_img.data = second_frame;
 
-    auto second_img_bw = argb_to_gray8(second_img);
+    auto second_img_bw = create_image(R_MOTION_IMAGE_TYPE_GRAY8, second_img.width, second_img.height);
+    argb_to_gray8(second_img, second_img_bw);
 
     r_image third_img;
     third_img.type = R_MOTION_IMAGE_TYPE_ARGB;
@@ -153,15 +156,20 @@ AGAIN:
     third_img.height = vsi.resolution.second;
     third_img.data = third_frame;
 
-    auto third_img_bw = argb_to_gray8(third_img);
+    auto third_img_bw = create_image(R_MOTION_IMAGE_TYPE_GRAY8, third_img.width, third_img.height);
+    argb_to_gray8(third_img, third_img_bw);
 
     // You need two frames to make a motion
     // And you need a previous motion to subtract it from the current motion... HENCE
     // you need three frames before you can start emitting motion values.
 
-    auto diff_img = gray8_subtract(second_img_bw, first_img_bw);
+    auto diff_img = create_image(R_MOTION_IMAGE_TYPE_GRAY8, vsi.resolution.first, vsi.resolution.second);
 
-    auto diff2_img = gray8_subtract(third_img_bw, second_img_bw);
+    gray8_subtract(second_img_bw, first_img_bw, diff_img);
+
+    auto diff2_img = create_image(R_MOTION_IMAGE_TYPE_GRAY8, vsi.resolution.first, vsi.resolution.second);
+
+    gray8_subtract(third_img_bw, second_img_bw, diff2_img);
 
     auto motion_img = gray8_remove(diff2_img, diff_img);
 
