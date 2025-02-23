@@ -120,9 +120,9 @@ void r_motion::gray8_subtract(const r_image& a, const r_image& b, r_image& outpu
     output.height = a.height;
 }
 
-r_image r_motion::gray8_remove(const r_image& a, const r_image& b)
+void r_motion::gray8_remove(const r_image& a, const r_image& b, r_image& output)
 {
-    auto output_buffer = make_shared<vector<uint8_t>>(a.width * a.height);
+    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, a.width, a.height));
 
     for(uint16_t h = 0; h < a.height; ++h)
     {
@@ -132,17 +132,13 @@ r_image r_motion::gray8_remove(const r_image& a, const r_image& b)
             auto a_val = a.data->data()[a_ofs];
 
             if(a_val > 0)
-                output_buffer->data()[a_ofs] = (b.data->data()[(h*b.width) + w] == 0)?a_val:0;
+                output.data->data()[a_ofs] = (b.data->data()[(h*b.width) + w] == 0)?a_val:0;
         }
     }
 
-    r_image output;
     output.type = R_MOTION_IMAGE_TYPE_GRAY8;
     output.width = a.width;
     output.height = a.height;
-    output.data = output_buffer;
-
-    return output;
 }
 
 r_image r_motion::gray8_median_filter(const r_image& input, int kernel_size)
