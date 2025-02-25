@@ -56,10 +56,10 @@ R_API void gray8_to_argb(const r_image& gray, r_image& output);
 R_API void gray8_subtract(const r_image& a, const r_image& b, r_image& output);
 R_API void gray8_remove(const r_image& a, const r_image& b, r_image& output);
 
-R_API r_image gray8_median_filter(const r_image& input, int kernel_size = 3);
-R_API r_image gray8_binarize(const r_image& input);
-R_API r_image gray8_dilate(const r_image& input, int kernel_size = 3);
-R_API r_image gray8_erode(const r_image& input, int kernel_size = 3);
+R_API void gray8_median_filter(const r_image& input, r_image& output, int kernel_size = 3);
+R_API void gray8_binarize(const r_image& input, r_image& output);
+R_API void gray8_dilate(const r_image& input, r_image& output, int kernel_size = 3);
+R_API void gray8_erode(const r_image& input, r_image& output, int kernel_size = 3);
 
 R_API uint64_t gray8_compute_motion(const r_image& a);
 

@@ -141,7 +141,7 @@ void r_motion::gray8_remove(const r_image& a, const r_image& b, r_image& output)
     output.height = a.height;
 }
 
-r_image r_motion::gray8_median_filter(const r_image& input, int kernel_size)
+void r_motion::gray8_median_filter(const r_image& input, r_image& output, int kernel_size)
 {
     if (input.type != R_MOTION_IMAGE_TYPE_GRAY8)
         R_THROW(("gray8_median_filter() supports only GRAY8 images"));
@@ -154,7 +154,7 @@ r_image r_motion::gray8_median_filter(const r_image& input, int kernel_size)
     uint16_t height = input.height;
     const uint8_t* src = input.data->data();
 
-    auto result = make_shared<vector<uint8_t>>(width * height);
+    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, width, height));
 
     // Temporary container to store neighborhood pixel values.
     vector<uint8_t> neighborhood;
@@ -167,7 +167,7 @@ r_image r_motion::gray8_median_filter(const r_image& input, int kernel_size)
             // If we're too close to the border, copy the pixel as is.
             if (x < half || y < half || x >= width - half || y >= height - half)
             {
-                (*result)[y * width + x] = src[y * width + x];
+                (*output.data)[y * width + x] = src[y * width + x];
             }
             else
             {
@@ -184,45 +184,39 @@ r_image r_motion::gray8_median_filter(const r_image& input, int kernel_size)
                 // Sort and pick the median value.
                 sort(neighborhood.begin(), neighborhood.end());
                 uint8_t median = neighborhood[neighborhood.size() / 2];
-                (*result)[y * width + x] = median;
+                (*output.data)[y * width + x] = median;
             }
         }
     }
 
-    r_image output;
     output.type = R_MOTION_IMAGE_TYPE_GRAY8;
     output.width = width;
     output.height = height;
-    output.data = result;
-    return output;
 }
 
-r_image r_motion::gray8_binarize(const r_image& input)
+void r_motion::gray8_binarize(const r_image& input, r_image& output)
 {
     if(input.type != R_MOTION_IMAGE_TYPE_GRAY8)
         R_THROW(("binarize() supports only GRAY8 images"));
 
-    auto result = make_shared<vector<uint8_t>>(input.width * input.height);
+    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, input.width, input.height));
     const uint8_t* src = input.data->data();
 
     for (uint32_t i = 0; i < input.width * input.height; ++i)
     {
         // Set any non-zero pixel to 255, making it binary.
-        (*result)[i] = (src[i] > 0) ? 255 : 0;
+        (*output.data)[i] = (src[i] > 0) ? 255 : 0;
     }
 
-    r_image output;
     output.type = R_MOTION_IMAGE_TYPE_GRAY8;
     output.width = input.width;
     output.height = input.height;
-    output.data = result;
-    return output;
 }
 
 // Dilation for a GRAY8 image using a square kernel of size kernel_size x kernel_size.
 // The kernel size must be odd. For each pixel (except near boundaries),
 // we set the output to 255 if any pixel in the neighborhood is 255.
-r_image r_motion::gray8_dilate(const r_image& input, int kernel_size)
+void r_motion::gray8_dilate(const r_image& input, r_image& output, int kernel_size)
 {
     if(input.type != R_MOTION_IMAGE_TYPE_GRAY8)
         R_THROW(("dilate() supports only GRAY8 images"));
@@ -235,7 +229,7 @@ r_image r_motion::gray8_dilate(const r_image& input, int kernel_size)
     uint16_t height = input.height;
     const uint8_t* src = input.data->data();
 
-    auto result = make_shared<vector<uint8_t>>(width * height);
+    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, input.width, input.height));
 
     for (uint16_t y = 0; y < height; ++y)
     {
@@ -244,7 +238,7 @@ r_image r_motion::gray8_dilate(const r_image& input, int kernel_size)
             // If we're too close to the border, simply copy the pixel.
             if (x < half || y < half || x >= width - half || y >= height - half)
             {
-                (*result)[y * width + x] = src[y * width + x];
+                (*output.data)[y * width + x] = src[y * width + x];
             }
             else
             {
@@ -266,23 +260,20 @@ r_image r_motion::gray8_dilate(const r_image& input, int kernel_size)
                     if(max_val == 255)
                         break;
                 }
-                (*result)[y * width + x] = max_val;
+                (*output.data)[y * width + x] = max_val;
             }
         }
     }
 
-    r_image output;
     output.type = R_MOTION_IMAGE_TYPE_GRAY8;
     output.width = width;
     output.height = height;
-    output.data = result;
-    return output;
 }
 
 // Erosion for a GRAY8 image using a square kernel of size kernel_size x kernel_size.
 // The kernel size must be odd. For each pixel (except near boundaries),
 // we set the output to 255 only if every pixel in the neighborhood is 255; otherwise 0.
-r_image r_motion::gray8_erode(const r_image& input, int kernel_size)
+void r_motion::gray8_erode(const r_image& input, r_image& output, int kernel_size)
 {
     if(input.type != R_MOTION_IMAGE_TYPE_GRAY8)
         R_THROW(("erode() supports only GRAY8 images"));
@@ -295,7 +286,7 @@ r_image r_motion::gray8_erode(const r_image& input, int kernel_size)
     uint16_t height = input.height;
     const uint8_t* src = input.data->data();
 
-    auto result = make_shared<vector<uint8_t>>(width * height);
+    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, input.width, input.height));
 
     for (uint16_t y = 0; y < height; ++y)
     {
@@ -304,7 +295,7 @@ r_image r_motion::gray8_erode(const r_image& input, int kernel_size)
             // If we're too close to the border, simply copy the pixel.
             if (x < half || y < half || x >= width - half || y >= height - half)
             {
-                (*result)[y * width + x] = src[y * width + x];
+                (*output.data)[y * width + x] = src[y * width + x];
             }
             else
             {
@@ -326,17 +317,14 @@ r_image r_motion::gray8_erode(const r_image& input, int kernel_size)
                     if(min_val == 0)
                         break;
                 }
-                (*result)[y * width + x] = min_val;
+                (*output.data)[y * width + x] = min_val;
             }
         }
     }
 
-    r_image output;
     output.type = R_MOTION_IMAGE_TYPE_GRAY8;
     output.width = width;
     output.height = height;
-    output.data = result;
-    return output;
 }
 
 uint64_t r_motion::gray8_compute_motion(const r_image& a)

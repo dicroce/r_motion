@@ -171,12 +171,26 @@ AGAIN:
 
     gray8_subtract(third_img_bw, second_img_bw, diff2_img);
 
-    auto motion_img = gray8_remove(diff2_img, diff_img);
+    auto motion_img = create_image(R_MOTION_IMAGE_TYPE_GRAY8, vsi.resolution.first, vsi.resolution.second);
+    
+    gray8_remove(diff2_img, diff_img, motion_img);
 
-    auto filtered = gray8_median_filter(motion_img);
-    auto binary = gray8_binarize(filtered);
-    auto dilated = gray8_dilate(binary);
-    auto eroded = gray8_erode(dilated);
+    auto filtered = create_image(R_MOTION_IMAGE_TYPE_GRAY8, vsi.resolution.first, vsi.resolution.second);
+
+    gray8_median_filter(motion_img, filtered);
+
+    auto binary = create_image(R_MOTION_IMAGE_TYPE_GRAY8, vsi.resolution.first, vsi.resolution.second);
+
+    gray8_binarize(filtered, binary);
+
+    auto dilated = create_image(R_MOTION_IMAGE_TYPE_GRAY8, vsi.resolution.first, vsi.resolution.second);
+
+    gray8_dilate(binary, dilated);
+
+    auto eroded = create_image(R_MOTION_IMAGE_TYPE_GRAY8, vsi.resolution.first, vsi.resolution.second);
+
+    gray8_erode(dilated, eroded);
+
     auto motion = gray8_compute_motion(eroded);
 
     RTF_ASSERT(motion > 1000);

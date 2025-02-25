@@ -56,12 +56,20 @@ r_nullable<r_motion_info> r_motion_state::process(const r_image& argb_input)
 
         if(_has_last_motion)
         {
-            diff = gray8_remove(diff, _last_motion);
+            auto removed = create_image(R_MOTION_IMAGE_TYPE_GRAY8, bw.width, bw.height);
+            gray8_remove(diff, _last_motion, removed);
 
-            auto filtered = gray8_median_filter(diff);
-            auto binary = gray8_binarize(filtered);
-            auto dilated = gray8_dilate(binary);
-            auto eroded = gray8_erode(dilated);
+            auto filtered = create_image(R_MOTION_IMAGE_TYPE_GRAY8, bw.width, bw.height);
+            gray8_median_filter(removed, filtered);
+
+            auto binary = create_image(R_MOTION_IMAGE_TYPE_GRAY8, bw.width, bw.height);
+            gray8_binarize(filtered, binary);
+
+            auto dilated = create_image(R_MOTION_IMAGE_TYPE_GRAY8, bw.width, bw.height);
+            gray8_dilate(binary, dilated);
+
+            auto eroded = create_image(R_MOTION_IMAGE_TYPE_GRAY8, bw.width, bw.height);
+            gray8_erode(dilated, eroded);
 
             r_motion_info mi;
             mi.motion_pixels = eroded;
