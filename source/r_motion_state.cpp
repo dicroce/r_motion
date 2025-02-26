@@ -9,16 +9,16 @@ r_motion_state::r_motion_state(size_t memory) :
     _has_last(false),
     _last(),
     _has_last_motion(),
-    _last_motion()
-{
-}
-
-r_motion_state::r_motion_state(r_motion_state&& obj) :
-    _avg_motion(move(obj._avg_motion)),
-    _has_last(move(obj._has_last)),
-    _last(move(obj._last)),
-    _has_last_motion(move(obj._has_last_motion)),
-    _last_motion(move(obj._last_motion))
+    _last_motion(),
+    _last_width(0),
+    _last_height(0),
+    _bw(),
+    _diff(),
+    _removed(),
+    _filtered(),
+    _binary(),
+    _dilated(),
+    _eroded()
 {
 }
 
@@ -26,54 +26,42 @@ r_motion_state::~r_motion_state() noexcept
 {
 }
 
-r_motion_state& r_motion_state::operator=(r_motion_state&& obj)
-{
-    if(this != &obj)
-    {
-        _avg_motion = move(obj._avg_motion);
-        _has_last = move(obj._has_last);
-        _last = move(obj._last);
-        _has_last_motion = move(obj._has_last_motion);
-        _last_motion = move(obj._last_motion);
-    }
-
-    return *this;
-}
-
 r_nullable<r_motion_info> r_motion_state::process(const r_image& argb_input)
 {
+    if(_resolution_change(argb_input))
+    {
+        _bw = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
+        _diff = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
+        _removed = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
+        _filtered = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
+        _binary = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
+        _dilated = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
+        _eroded = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
+    }
+
     r_nullable<r_motion_info> result;
 
-    auto bw = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
-
-    argb_to_gray8(argb_input, bw);
+    argb_to_gray8(argb_input, _bw);
 
     if(_has_last)
     {
-        auto diff = create_image(R_MOTION_IMAGE_TYPE_GRAY8, bw.width, bw.height);
-
-        gray8_subtract(bw, _last, diff);
+        gray8_subtract(_bw, _last, _diff);
 
         if(_has_last_motion)
         {
-            auto removed = create_image(R_MOTION_IMAGE_TYPE_GRAY8, bw.width, bw.height);
-            gray8_remove(diff, _last_motion, removed);
+            gray8_remove(_diff, _last_motion, _removed);
 
-            auto filtered = create_image(R_MOTION_IMAGE_TYPE_GRAY8, bw.width, bw.height);
-            gray8_median_filter(removed, filtered);
+            gray8_median_filter(_removed, _filtered);
 
-            auto binary = create_image(R_MOTION_IMAGE_TYPE_GRAY8, bw.width, bw.height);
-            gray8_binarize(filtered, binary);
+            gray8_binarize(_filtered, _binary);
 
-            auto dilated = create_image(R_MOTION_IMAGE_TYPE_GRAY8, bw.width, bw.height);
-            gray8_dilate(binary, dilated);
+            gray8_dilate(_binary, _dilated);
 
-            auto eroded = create_image(R_MOTION_IMAGE_TYPE_GRAY8, bw.width, bw.height);
-            gray8_erode(dilated, eroded);
+            gray8_erode(_dilated, _eroded);
 
             r_motion_info mi;
-            mi.motion_pixels = eroded;
-            mi.motion = gray8_compute_motion(eroded);
+            mi.motion_pixels = _eroded;
+            mi.motion = gray8_compute_motion(_eroded);
             mi.avg_motion = _avg_motion.update(mi.motion);
             mi.stddev = _avg_motion.standard_deviation();
 
@@ -81,11 +69,11 @@ r_nullable<r_motion_info> r_motion_state::process(const r_image& argb_input)
         }
 
         _has_last_motion = true;
-        _last_motion = diff;
+        _last_motion = _diff;
     }
 
     _has_last = true;
-    _last = bw;
+    _last = _bw;
 
     return result;
 }

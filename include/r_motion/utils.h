@@ -22,7 +22,7 @@ struct r_image
     r_motion_image_type type;
     uint16_t width;
     uint16_t height;
-    std::shared_ptr<std::vector<uint8_t>> data;
+    std::vector<uint8_t> data;
 };
 
 // Structure to represent a pixel (as a point) for clustering.

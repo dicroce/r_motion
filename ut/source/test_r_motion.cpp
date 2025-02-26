@@ -136,7 +136,7 @@ AGAIN:
     first_img.type = R_MOTION_IMAGE_TYPE_ARGB;
     first_img.width = vsi.resolution.first;
     first_img.height = vsi.resolution.second;
-    first_img.data = first_frame;
+    first_img.data = *first_frame;
 
     auto first_img_bw = create_image(R_MOTION_IMAGE_TYPE_GRAY8, first_img.width, first_img.height);
     argb_to_gray8(first_img, first_img_bw);
@@ -145,7 +145,7 @@ AGAIN:
     second_img.type = R_MOTION_IMAGE_TYPE_ARGB;
     second_img.width = vsi.resolution.first;
     second_img.height = vsi.resolution.second;
-    second_img.data = second_frame;
+    second_img.data = *second_frame;
 
     auto second_img_bw = create_image(R_MOTION_IMAGE_TYPE_GRAY8, second_img.width, second_img.height);
     argb_to_gray8(second_img, second_img_bw);
@@ -154,7 +154,7 @@ AGAIN:
     third_img.type = R_MOTION_IMAGE_TYPE_ARGB;
     third_img.width = vsi.resolution.first;
     third_img.height = vsi.resolution.second;
-    third_img.data = third_frame;
+    third_img.data = *third_frame;
 
     auto third_img_bw = create_image(R_MOTION_IMAGE_TYPE_GRAY8, third_img.width, third_img.height);
     argb_to_gray8(third_img, third_img_bw);
@@ -238,7 +238,7 @@ AGAIN:
                 img.type = R_MOTION_IMAGE_TYPE_ARGB;
                 img.width = vsi.resolution.first;
                 img.height = vsi.resolution.second;
-                img.data = frame;
+                img.data = *frame;
 
                 auto maybe_mi = ms.process(img);
 

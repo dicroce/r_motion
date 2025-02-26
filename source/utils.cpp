@@ -29,18 +29,18 @@ r_image r_motion::create_image(r_motion_image_type type, uint16_t w, uint16_t h)
     img.type = type;
     img.width = w;
     img.height = h;
-    img.data = make_shared<std::vector<uint8_t>>(image_size(type, w, h));
+    img.data.resize(image_size(type, w, h));
 
     return img;
 }
 
 void r_motion::argb_to_gray8(const r_image& argb, r_image& output)
 {
-    const uint8_t* src = argb.data->data();
+    const uint8_t* src = argb.data.data();
 
-    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, argb.width, argb.height));
+    output.data.resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, argb.width, argb.height));
 
-    uint8_t* dst = output.data->data();
+    uint8_t* dst = output.data.data();
 
     for(uint16_t y = 0; y < argb.height; ++y)
     {
@@ -67,11 +67,11 @@ void r_motion::argb_to_gray8(const r_image& argb, r_image& output)
 
 void r_motion::gray8_to_argb(const r_image& gray, r_image& output)
 {
-    const uint8_t* src = gray.data->data();
+    const uint8_t* src = gray.data.data();
 
-    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_ARGB, gray.width, gray.height));
+    output.data.resize(image_size(R_MOTION_IMAGE_TYPE_ARGB, gray.width, gray.height));
 
-    uint8_t* dst = output.data->data();
+    uint8_t* dst = output.data.data();
 
     for(uint16_t y = 0; y < gray.height; ++y)
     {
@@ -97,11 +97,11 @@ void r_motion::gray8_to_argb(const r_image& gray, r_image& output)
 
 void r_motion::gray8_subtract(const r_image& a, const r_image& b, r_image& output)
 {
-    const uint8_t* src_a = a.data->data();
-    const uint8_t* src_b = b.data->data();
+    const uint8_t* src_a = a.data.data();
+    const uint8_t* src_b = b.data.data();
 
-    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, a.width, a.height));
-    uint8_t* dst = output.data->data();
+    output.data.resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, a.width, a.height));
+    uint8_t* dst = output.data.data();
 
     for(uint16_t h = 0; h < a.height; ++h)
     {
@@ -122,17 +122,17 @@ void r_motion::gray8_subtract(const r_image& a, const r_image& b, r_image& outpu
 
 void r_motion::gray8_remove(const r_image& a, const r_image& b, r_image& output)
 {
-    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, a.width, a.height));
+    output.data.resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, a.width, a.height));
 
     for(uint16_t h = 0; h < a.height; ++h)
     {
         for(uint16_t w = 0; w < a.width; ++w)
         {
             auto a_ofs = (h*a.width) + w;
-            auto a_val = a.data->data()[a_ofs];
+            auto a_val = a.data.data()[a_ofs];
 
             if(a_val > 0)
-                output.data->data()[a_ofs] = (b.data->data()[(h*b.width) + w] == 0)?a_val:0;
+                output.data.data()[a_ofs] = (b.data.data()[(h*b.width) + w] == 0)?a_val:0;
         }
     }
 
@@ -152,9 +152,9 @@ void r_motion::gray8_median_filter(const r_image& input, r_image& output, int ke
     int half = kernel_size / 2;
     uint16_t width = input.width;
     uint16_t height = input.height;
-    const uint8_t* src = input.data->data();
+    const uint8_t* src = input.data.data();
 
-    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, width, height));
+    output.data.resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, width, height));
 
     // Temporary container to store neighborhood pixel values.
     vector<uint8_t> neighborhood;
@@ -167,7 +167,7 @@ void r_motion::gray8_median_filter(const r_image& input, r_image& output, int ke
             // If we're too close to the border, copy the pixel as is.
             if (x < half || y < half || x >= width - half || y >= height - half)
             {
-                (*output.data)[y * width + x] = src[y * width + x];
+                output.data[y * width + x] = src[y * width + x];
             }
             else
             {
@@ -184,7 +184,7 @@ void r_motion::gray8_median_filter(const r_image& input, r_image& output, int ke
                 // Sort and pick the median value.
                 sort(neighborhood.begin(), neighborhood.end());
                 uint8_t median = neighborhood[neighborhood.size() / 2];
-                (*output.data)[y * width + x] = median;
+                output.data[y * width + x] = median;
             }
         }
     }
@@ -199,13 +199,13 @@ void r_motion::gray8_binarize(const r_image& input, r_image& output)
     if(input.type != R_MOTION_IMAGE_TYPE_GRAY8)
         R_THROW(("binarize() supports only GRAY8 images"));
 
-    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, input.width, input.height));
-    const uint8_t* src = input.data->data();
+    output.data.resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, input.width, input.height));
+    const uint8_t* src = input.data.data();
 
     for (uint32_t i = 0; i < input.width * input.height; ++i)
     {
         // Set any non-zero pixel to 255, making it binary.
-        (*output.data)[i] = (src[i] > 0) ? 255 : 0;
+        output.data[i] = (src[i] > 0) ? 255 : 0;
     }
 
     output.type = R_MOTION_IMAGE_TYPE_GRAY8;
@@ -227,9 +227,9 @@ void r_motion::gray8_dilate(const r_image& input, r_image& output, int kernel_si
     int half = kernel_size / 2;
     uint16_t width = input.width;
     uint16_t height = input.height;
-    const uint8_t* src = input.data->data();
+    const uint8_t* src = input.data.data();
 
-    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, input.width, input.height));
+    output.data.resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, input.width, input.height));
 
     for (uint16_t y = 0; y < height; ++y)
     {
@@ -238,7 +238,7 @@ void r_motion::gray8_dilate(const r_image& input, r_image& output, int kernel_si
             // If we're too close to the border, simply copy the pixel.
             if (x < half || y < half || x >= width - half || y >= height - half)
             {
-                (*output.data)[y * width + x] = src[y * width + x];
+                output.data[y * width + x] = src[y * width + x];
             }
             else
             {
@@ -260,7 +260,7 @@ void r_motion::gray8_dilate(const r_image& input, r_image& output, int kernel_si
                     if(max_val == 255)
                         break;
                 }
-                (*output.data)[y * width + x] = max_val;
+                output.data[y * width + x] = max_val;
             }
         }
     }
@@ -284,9 +284,9 @@ void r_motion::gray8_erode(const r_image& input, r_image& output, int kernel_siz
     int half = kernel_size / 2;
     uint16_t width = input.width;
     uint16_t height = input.height;
-    const uint8_t* src = input.data->data();
+    const uint8_t* src = input.data.data();
 
-    output.data->resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, input.width, input.height));
+    output.data.resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, input.width, input.height));
 
     for (uint16_t y = 0; y < height; ++y)
     {
@@ -295,7 +295,7 @@ void r_motion::gray8_erode(const r_image& input, r_image& output, int kernel_siz
             // If we're too close to the border, simply copy the pixel.
             if (x < half || y < half || x >= width - half || y >= height - half)
             {
-                (*output.data)[y * width + x] = src[y * width + x];
+                output.data[y * width + x] = src[y * width + x];
             }
             else
             {
@@ -317,7 +317,7 @@ void r_motion::gray8_erode(const r_image& input, r_image& output, int kernel_siz
                     if(min_val == 0)
                         break;
                 }
-                (*output.data)[y * width + x] = min_val;
+                output.data[y * width + x] = min_val;
             }
         }
     }
@@ -329,7 +329,7 @@ void r_motion::gray8_erode(const r_image& input, r_image& output, int kernel_siz
 
 uint64_t r_motion::gray8_compute_motion(const r_image& a)
 {
-    auto a_p = a.data->data();
+    auto a_p = a.data.data();
     uint64_t sum = 0;
 
     for(uint16_t h = 0; h < a.height; ++h)
@@ -350,7 +350,7 @@ void r_motion::write_argb_to_ppm(const std::string& filename, const r_image& ima
 
     fprintf(outFile, "P6 %d %d 255\n", image.width, image.height);
 
-    const uint8_t* src = image.data->data();
+    const uint8_t* src = image.data.data();
 
     for(uint16_t y = 0; y < image.height; ++y)
     {
@@ -407,7 +407,7 @@ std::vector<std::vector<r_point>> r_motion::gray8_dbscan(const r_image &image, d
         for (int x = 0; x < image.width; ++x)
         {
             // Calculate the index in the 1D data buffer
-            uint8_t value = (*image.data)[y * image.width + x];
+            uint8_t value = image.data[y * image.width + x];
             if (value > 0)
                 points.push_back({x, y, 0, false});
         }
@@ -580,7 +580,7 @@ std::vector<std::vector<r_point>> r_motion::gray8_hdbscan(const r_image &image, 
     {
         for (int x = 0; x < image.width; ++x)
         {
-            uint8_t value = (*image.data)[y * image.width + x];
+            uint8_t value = image.data[y * image.width + x];
             if (value > 0)
                 points.push_back({x, y, 0, false, 0.0});
         }
