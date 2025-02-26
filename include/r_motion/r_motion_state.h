@@ -57,6 +57,7 @@ private:
     uint16_t _last_width;
     uint16_t _last_height;
     r_image _bw;
+    r_image _normalized; // New image buffer for normalization
     r_image _diff;
     r_image _removed;
     r_image _filtered;

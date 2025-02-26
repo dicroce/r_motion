@@ -95,6 +95,101 @@ void r_motion::gray8_to_argb(const r_image& gray, r_image& output)
     output.height = gray.height;
 }
 
+void r_motion::gray8_normalize(const r_image& input, r_image& output)
+{
+    if(input.type != R_MOTION_IMAGE_TYPE_GRAY8)
+        R_THROW(("gray8_normalize() supports only GRAY8 images"));
+
+    output.data.resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, input.width, input.height));
+    
+    // Calculate average brightness
+    uint64_t sum = 0;
+    const uint8_t* src = input.data.data();
+    for (uint32_t i = 0; i < input.width * input.height; ++i)
+    {
+        sum += src[i];
+    }
+    double avg = static_cast<double>(sum) / (input.width * input.height);
+    
+    // Use a standard target brightness (128)
+    const double target_avg = 128.0;
+    double scale_factor = (avg > 0) ? target_avg / avg : 1.0;
+
+    // Apply scaling to normalize brightness
+    for (uint32_t i = 0; i < input.width * input.height; ++i)
+    {
+        int val = static_cast<int>(src[i] * scale_factor);
+        output.data[i] = std::min(255, std::max(0, val));
+    }
+
+    output.type = R_MOTION_IMAGE_TYPE_GRAY8;
+    output.width = input.width;
+    output.height = input.height;
+}
+
+void r_motion::gray8_subtract_normalized(const r_image& a, const r_image& b, r_image& output, double threshold_factor)
+{
+    if(a.type != R_MOTION_IMAGE_TYPE_GRAY8 || b.type != R_MOTION_IMAGE_TYPE_GRAY8)
+        R_THROW(("gray8_subtract_normalized() supports only GRAY8 images"));
+
+    const uint8_t* src_a = a.data.data();
+    const uint8_t* src_b = b.data.data();
+
+    output.data.resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, a.width, a.height));
+    uint8_t* dst = output.data.data();
+
+    // Calculate average values and standard deviation for both images
+    uint64_t sum_a = 0, sum_b = 0;
+    for(uint32_t i = 0; i < a.width * a.height; ++i)
+    {
+        sum_a += src_a[i];
+        sum_b += src_b[i];
+    }
+    double avg_a = static_cast<double>(sum_a) / (a.width * a.height);
+    double avg_b = static_cast<double>(sum_b) / (b.width * b.height);
+
+    // Calculate standard deviations
+    double sum_sq_a = 0, sum_sq_b = 0;
+    for(uint32_t i = 0; i < a.width * a.height; ++i)
+    {
+        sum_sq_a += (src_a[i] - avg_a) * (src_a[i] - avg_a);
+        sum_sq_b += (src_b[i] - avg_b) * (src_b[i] - avg_b);
+    }
+    double std_dev_a = std::sqrt(sum_sq_a / (a.width * a.height));
+    double std_dev_b = std::sqrt(sum_sq_b / (b.width * b.height));
+
+    // Use average of standard deviations as adaptive threshold
+    double adaptive_threshold = threshold_factor * (std_dev_a + std_dev_b) / 2.0;
+    double min_threshold = 10.0; // Minimum threshold to avoid noise in dark scenes
+    double threshold = std::max(min_threshold, adaptive_threshold);
+
+    // Normalize brightness for comparison
+    double scale_factor = (avg_b > 0) ? avg_a / avg_b : 1.0;
+
+    for(uint16_t h = 0; h < a.height; ++h)
+    {
+        for(uint16_t w = 0; w < a.width; ++w)
+        {
+            // Scale the second image's pixel value to match average brightness of first
+            double adjusted_b = (*src_b) * scale_factor;
+            
+            // Calculate difference using the adjusted value
+            double diff = std::abs(*src_a - adjusted_b);
+            
+            // Apply adaptive threshold
+            *dst = (diff > threshold) ? std::min(255, static_cast<int>(diff)) : 0;
+            
+            ++src_a;
+            ++src_b;
+            ++dst;
+        }
+    }
+
+    output.type = R_MOTION_IMAGE_TYPE_GRAY8;
+    output.width = a.width;
+    output.height = a.height;
+}
+
 void r_motion::gray8_subtract(const r_image& a, const r_image& b, r_image& output)
 {
     const uint8_t* src_a = a.data.data();

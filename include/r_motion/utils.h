@@ -53,6 +53,8 @@ R_API r_image create_image(r_motion_image_type type, uint16_t w, uint16_t h);
 R_API void argb_to_gray8(const r_image& argb, r_image& output);
 R_API void gray8_to_argb(const r_image& gray, r_image& output);
 
+R_API void gray8_normalize(const r_image& input, r_image& output);
+R_API void gray8_subtract_normalized(const r_image& a, const r_image& b, r_image& output, double threshold_factor = 0.15);
 R_API void gray8_subtract(const r_image& a, const r_image& b, r_image& output);
 R_API void gray8_remove(const r_image& a, const r_image& b, r_image& output);
 

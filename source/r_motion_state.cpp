@@ -31,6 +31,7 @@ r_nullable<r_motion_info> r_motion_state::process(const r_image& argb_input)
     if(_resolution_change(argb_input))
     {
         _bw = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
+        _normalized = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
         _diff = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
         _removed = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
         _filtered = create_image(R_MOTION_IMAGE_TYPE_GRAY8, argb_input.width, argb_input.height);
@@ -45,7 +46,8 @@ r_nullable<r_motion_info> r_motion_state::process(const r_image& argb_input)
 
     if(_has_last)
     {
-        gray8_subtract(_bw, _last, _diff);
+        // Use the new normalized subtraction function
+        gray8_subtract_normalized(_bw, _last, _diff, 0.15);
 
         if(_has_last_motion)
         {
