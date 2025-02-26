@@ -95,38 +95,6 @@ void r_motion::gray8_to_argb(const r_image& gray, r_image& output)
     output.height = gray.height;
 }
 
-void r_motion::gray8_normalize(const r_image& input, r_image& output)
-{
-    if(input.type != R_MOTION_IMAGE_TYPE_GRAY8)
-        R_THROW(("gray8_normalize() supports only GRAY8 images"));
-
-    output.data.resize(image_size(R_MOTION_IMAGE_TYPE_GRAY8, input.width, input.height));
-    
-    // Calculate average brightness
-    uint64_t sum = 0;
-    const uint8_t* src = input.data.data();
-    for (uint32_t i = 0; i < input.width * input.height; ++i)
-    {
-        sum += src[i];
-    }
-    double avg = static_cast<double>(sum) / (input.width * input.height);
-    
-    // Use a standard target brightness (128)
-    const double target_avg = 128.0;
-    double scale_factor = (avg > 0) ? target_avg / avg : 1.0;
-
-    // Apply scaling to normalize brightness
-    for (uint32_t i = 0; i < input.width * input.height; ++i)
-    {
-        int val = static_cast<int>(src[i] * scale_factor);
-        output.data[i] = std::min(255, std::max(0, val));
-    }
-
-    output.type = R_MOTION_IMAGE_TYPE_GRAY8;
-    output.width = input.width;
-    output.height = input.height;
-}
-
 void r_motion::gray8_subtract_normalized(const r_image& a, const r_image& b, r_image& output, double threshold_factor)
 {
     if(a.type != R_MOTION_IMAGE_TYPE_GRAY8 || b.type != R_MOTION_IMAGE_TYPE_GRAY8)
