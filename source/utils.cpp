@@ -1,8 +1,9 @@
 #include "r_motion/utils.h"
 #include "r_utils/r_file.h"
-#include <cmath>
+#include <limits>
 #include <algorithm>
 #include <unordered_map>
+#include <cmath>
 
 using namespace std;
 using namespace r_utils;
@@ -129,7 +130,7 @@ void r_motion::gray8_subtract_normalized(const r_image& a, const r_image& b, r_i
     // Use average of standard deviations as adaptive threshold
     double adaptive_threshold = threshold_factor * (std_dev_a + std_dev_b) / 2.0;
     double min_threshold = 10.0; // Minimum threshold to avoid noise in dark scenes
-    double threshold = std::max(min_threshold, adaptive_threshold);
+    double threshold = max(min_threshold, adaptive_threshold);
 
     // Normalize brightness for comparison
     double scale_factor = (avg_b > 0) ? avg_a / avg_b : 1.0;
@@ -145,7 +146,7 @@ void r_motion::gray8_subtract_normalized(const r_image& a, const r_image& b, r_i
             double diff = std::abs(*src_a - adjusted_b);
             
             // Apply adaptive threshold
-            *dst = (diff > threshold) ? std::min(255, static_cast<int>(diff)) : 0;
+            *dst = (diff > threshold) ? min(255, static_cast<int>(diff)) : 0;
             
             ++src_a;
             ++src_b;
@@ -555,7 +556,8 @@ void _computeCoreDistances(std::vector<r_point> &points, int minPts)
 static double _mutualReachabilityDistance(const r_point &a, const r_point &b)
 {
     double d = _distance(a, b);
-    return std::max({a.coreDistance, b.coreDistance, d});
+    auto vals = {a.coreDistance, b.coreDistance, d};
+    return *max_element(vals.begin(), vals.end());
 }
 
 // Union-find data structure for Kruskal's algorithm.
