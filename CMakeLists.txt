@@ -11,6 +11,7 @@ FetchContent_Declare(
     r_utils
     GIT_REPOSITORY https://github.com/dicroce/r_utils.git
     GIT_TAG        main
+    FIND_PACKAGE_ARGS NAMES r_utils
 )
 FetchContent_MakeAvailable(r_utils)
 
@@ -24,13 +25,15 @@ add_library(
 
 target_include_directories(
     r_motion PUBLIC
-    include
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 
 target_link_libraries(
     r_motion PUBLIC
     r_utils
-    ${CMAKE_DL_LIBS}
 )
 
-add_subdirectory(ut)
+#add_subdirectory(ut)
+
+configure_dev_package("r_motion" "A C++ library that does video motion detection.")
