@@ -3,6 +3,7 @@ FetchContent_Declare(
     r_av
     GIT_REPOSITORY https://github.com/dicroce/r_av.git
     GIT_TAG        main
+    FIND_PACKAGE_ARGS NAMES r_av
 )
 FetchContent_MakeAvailable(r_av)
 
