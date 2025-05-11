@@ -12,8 +12,19 @@ if(NOT DEFINED OPENCV_LIBS)
         )
 
         target_link_libraries(opencv INTERFACE
+            opencv_bgsegm4120.lib
+            opencv_calib3d4120.lib
             opencv_core4120.lib
+            opencv_features2d4120.lib
+            opencv_flann4120.lib
+            opencv_imgcodecs4120.lib
             opencv_imgproc4120.lib
+            opencv_optflow4120.lib
+            opencv_plot4120.lib
+            opencv_tracking4120.lib
+            opencv_video4120.lib
+            opencv_xfeatures2d4120.lib
+            opencv_ximgproc4120.lib
         )
 
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
