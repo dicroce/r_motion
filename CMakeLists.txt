@@ -33,7 +33,7 @@ target_include_directories(
 target_link_libraries(
     r_motion PUBLIC
     r_utils
-    opencv
+    ${OPENCV_LIBS}
 )
 
 option(BUILD_INSTALL_DEV_PACKAGES "Install dev packages for subprojects" OFF)
