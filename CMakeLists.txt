@@ -6,6 +6,7 @@ project(r_motion VERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PRO
 
 include(r_build.txt)
 include(FetchContent)
+include(OpenCVConfig.cmake)
 
 FetchContent_Declare(
     r_utils
@@ -32,6 +33,7 @@ target_include_directories(
 target_link_libraries(
     r_motion PUBLIC
     r_utils
+    opencv
 )
 
 option(BUILD_INSTALL_DEV_PACKAGES "Install dev packages for subprojects" OFF)

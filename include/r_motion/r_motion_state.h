@@ -5,6 +5,7 @@
 #include "r_utils/r_avg.h"
 #include "r_utils/r_nullable.h"
 #include "r_utils/r_macro.h"
+#include <opencv2/opencv.hpp>
 #include <functional>
 
 namespace r_motion
@@ -17,6 +18,42 @@ struct r_motion_info
     uint64_t avg_motion {0};
     uint64_t stddev {0};
 };
+
+class r_motion_state2
+{
+public:
+    R_API r_motion_state2(size_t memory=500);
+    R_API r_motion_state2(const r_motion_state2&) = delete;
+    R_API r_motion_state2(r_motion_state2&& obj) = delete;
+    R_API ~r_motion_state2() noexcept;
+
+    R_API r_motion_state2& operator=(const r_motion_state2&) = delete;
+    R_API r_motion_state2& operator=(r_motion_state2&& obj) = delete;
+
+    R_API r_utils::r_nullable<r_motion_info> process(const r_image& argb_input);
+
+private:
+    bool _resolution_change(const r_image& img)
+    {
+        if(img.width != _last_width)
+        {
+            _last_width = img.width;
+            _last_height = img.height;
+            return true;
+        }
+        if(img.height != _last_height)
+        {
+            _last_width = img.width;
+            _last_height = img.height;
+            return true;
+        }
+        return false;
+    }
+    r_utils::r_exp_avg<uint64_t> _avg_motion;
+    uint16_t _last_width;
+    uint16_t _last_height;
+};
+
 
 class r_motion_state
 {
