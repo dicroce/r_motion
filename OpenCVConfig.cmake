@@ -5,16 +5,15 @@ if(NOT DEFINED OPENCV_LIBS)
 
         target_include_directories(opencv INTERFACE
             "$ENV{OPENCV_TOP_DIR}/include"
-            "$ENV{OPENCV_TOP_DIR}/include/opencv4"
         )
 
         target_link_directories(opencv INTERFACE
-            "$ENV{OPENCV_TOP_DIR}/x64/vc16/lib"
+            "$ENV{OPENCV_TOP_DIR}/x64/vc17/lib"
         )
 
         target_link_libraries(opencv INTERFACE
-            opencv_core470.lib
-            opencv_imgproc470.lib
+            opencv_core4120.lib
+            opencv_imgproc4120.lib
         )
 
     elseif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
